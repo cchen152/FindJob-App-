@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class GitHubClient {
@@ -47,7 +48,9 @@ public class GitHubClient {
 
             if (status >= 200 && status < 300) {
               HttpEntity entity = httpResponse.getEntity();
-              return entity != null ? getItemList(new JSONArray(EntityUtils.toString(entity))) : new ArrayList<Item>();
+              return entity != null
+                  ? getItemList(new JSONArray(EntityUtils.toString(entity)))
+                  : new ArrayList<Item>();
             } else {
               throw new ClientProtocolException("");
             }
@@ -67,7 +70,20 @@ public class GitHubClient {
 
   private List<Item> getItemList(JSONArray array) {
     List<Item> itemList = new ArrayList<>();
+    List<String> descriptionList = new ArrayList<>();
 
+    for (int i = 0; i < array.length(); i++) {
+      String description = getStringFieldOrEmpty(array.getJSONObject(i), "description");
+      if (description.equals("") || description.equals("\n")) {
+        descriptionList.add(getStringFieldOrEmpty(array.getJSONObject(i), "title"));
+      } else {
+        descriptionList.add(description);
+      }
+    }
+
+    List<List<String>> keywords =
+        MonkeyLearnClient.extractKeywords(
+            descriptionList.toArray(new String[descriptionList.size()]));
     for (int i = 0; i < array.length(); i++) {
       JSONObject object = array.getJSONObject(i);
       Item item =
@@ -77,6 +93,7 @@ public class GitHubClient {
               .withAddress(getStringFieldOrEmpty(object, "location"))
               .withUrl(getStringFieldOrEmpty(object, "url"))
               .withImageUrl(getStringFieldOrEmpty(object, "company_logo"))
+              .withKeywords(new HashSet<>(keywords.get(i)))
               .build();
 
       itemList.add(item);

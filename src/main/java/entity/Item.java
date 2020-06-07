@@ -19,6 +19,30 @@ public class Item {
 
     private Set<String> keywords;
 
+    public String getItemId() {
+        return itemId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public Set<String> getKeywords() {
+        return keywords;
+    }
+
     public JSONObject toJSONObject() {
         JSONObject object = new JSONObject();
 
