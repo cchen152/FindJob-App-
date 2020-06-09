@@ -11,6 +11,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -25,6 +26,12 @@ public class SearchItem extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
+    HttpSession session = request.getSession(false);
+    if (session == null) {
+      response.setStatus(403);
+      return;
+    }
+
     String userId = request.getParameter("user_id");
     GitHubClient gitHubClient = new GitHubClient();
     double lat = Double.valueOf(request.getParameter("lat"));
