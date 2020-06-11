@@ -90,7 +90,7 @@ public class MySQLConnection {
     return favoriteItems;
   }
 
-  private Set<String> getKeywords(String itemId) {
+  public Set<String> getKeywords(String itemId) {
     if (conn == null) {
       System.err.println("DB connection failed");
       return new HashSet<>();
