@@ -1,29 +1,34 @@
-(function () {
+(function() {
+
+    /**
+     * Variables
+     */
     var user_id = '1111';
     var user_fullname = 'John';
     var lng = -122.08;
     var lat = 37.38;
 
-    console.log(user_id);
-
+    /**
+     * Initialize major event handlers
+     */
     function init() {
         // register event listeners
-        document.querySelector('#login-form-btn').addEventListener('click',
-            onSessionInvalid);
-        document.querySelector('#register-form-btn').addEventListener('click',
-            showRegisterForm);
-        document.querySelector('#register-btn').addEventListener('click',
-            register);
+        document.querySelector('#login-form-btn').addEventListener('click', onSessionInvalid);
         document.querySelector('#login-btn').addEventListener('click', login);
+        document.querySelector('#register-form-btn').addEventListener('click', showRegisterForm);
+        document.querySelector('#register-btn').addEventListener('click', register);
         document.querySelector('#nearby-btn').addEventListener('click', loadNearbyItems);
         document.querySelector('#fav-btn').addEventListener('click', loadFavoriteItems);
         document.querySelector('#recommend-btn').addEventListener('click', loadRecommendedItems);
         validateSession();
+        // onSessionValid({"user_id":"1111","name":"John Smith","status":"OK"});
     }
 
+    /**
+     * Session
+     */
     function validateSession() {
         onSessionInvalid();
-
         // The request parameters
         var url = './login';
         var req = JSON.stringify({});
@@ -40,15 +45,9 @@
                 if (result.status === 'OK') {
                     onSessionValid(result);
                 }
-            }, function() {
+            }, function(){
                 console.log('login error')
             });
-    }
-
-    function showLoadingMessage(msg) {
-        var itemList = document.querySelector('#item-list');
-        itemList.innerHTML = '<p class="notice"><i class="fa fa-spinner fa-spin"></i> '
-            + msg + '</p>';
     }
 
     function onSessionValid(result) {
@@ -76,8 +75,6 @@
         initGeoLocation();
     }
 
-
-    // only show login form, hide the rest
     function onSessionInvalid() {
         var loginForm = document.querySelector('#login-form');
         var registerForm = document.querySelector('#register-form');
@@ -96,6 +93,15 @@
 
         clearLoginError();
         showElement(loginForm);
+    }
+
+    function hideElement(element) {
+        element.style.display = 'none';
+    }
+
+    function showElement(element, style) {
+        var displayStyle = style ? style : 'block';
+        element.style.display = displayStyle;
     }
 
     function showRegisterForm() {
@@ -118,81 +124,54 @@
         showElement(registerForm);
     }
 
-    function clearRegisterResult() {
-        document.querySelector('#register-result').innerHTML = '';
-    }
 
-    function hideElement(element) {
-        element.style.display = 'none';
-    }
-
-    function clearLoginError() {
-        document.querySelector('#login-error').innerHTML = '';
-    }
-
-    function showElement(element, style) {
-        var displayStyle = style ? style : 'block';
-        element.style.display = displayStyle;
-    }
-
-    // -----------------------------------
-    // Register
-    // -----------------------------------
-    function register() {
-        var username = document.querySelector('#register-username').value;
-        var password = document.querySelector('#register-password').value;
-        var firstName = document.querySelector('#register-first-name').value;
-        var lastName = document.querySelector('#register-last-name').value;
-
-        if (username === "" || password == "" || firstName === ""
-            || lastName === "") {
-            showRegisterResult('Please fill in all fields');
-            return;
+    function initGeoLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                onPositionUpdated,
+                onLoadPositionFailed, {
+                    maximumAge: 60000
+                });
+            showLoadingMessage('Retrieving your location...');
+        } else {
+            onLoadPositionFailed();
         }
+    }
 
-        if (username.match(/^[a-z0-9_]+$/) === null) {
-            showRegisterResult('Invalid username');
-            return;
-        }
-        password = md5(username + md5(password));
+    function onPositionUpdated(position) {
+        lat = position.coords.latitude;
+        lng = position.coords.longitude;
 
-        // The request parameters
-        var url = './register';
-        var req = JSON.stringify({
-            user_id : username,
-            password : password,
-            first_name : firstName,
-            last_name : lastName,
+        loadNearbyItems();
+    }
+
+    function onLoadPositionFailed() {
+        console.warn('navigator.geolocation is not available');
+        getLocationFromIP();
+    }
+
+    function getLocationFromIP() {
+        // get location from http://ipinfo.io/json
+        var url = 'http://ipinfo.io/json'
+        var data = null;
+
+        ajax('GET', url, data, function(res) {
+            var result = JSON.parse(res);
+            if ('loc' in result) {
+                var loc = result.loc.split(',');
+                lat = loc[0];
+                lng = loc[1];
+            } else {
+                console.warn('Getting location by IP failed.');
+            }
+            loadNearbyItems();
         });
-
-        ajax('POST', url, req,
-            // successful callback
-            function(res) {
-                var result = JSON.parse(res);
-                // successfully logged in
-                if (result.status === 'OK') {
-                    showRegisterResult('Succesfully registered');
-                } else {
-                    showRegisterResult('User already existed');
-                }
-            },
-            // error
-            function() {
-                showRegisterResult('Failed to register');
-            }, true);
-    }
-
-    function showRegisterResult(registerMessage) {
-        document.querySelector('#register-result').innerHTML = registerMessage;
-    }
-
-    function clearRegisterResult() {
-        document.querySelector('#register-result').innerHTML = '';
     }
 
     // -----------------------------------
     // Login
     // -----------------------------------
+
     function login() {
         var username = document.querySelector('#username').value;
         var password = document.querySelector('#password').value;
@@ -209,46 +188,188 @@
             // successful callback
             function(res) {
                 var result = JSON.parse(res);
+
                 // successfully logged in
                 if (result.status === 'OK') {
-                    console.log('login successfully!')
+                    onSessionValid(result);
                 }
             },
+
             // error
             function() {
                 showLoginError();
-            }, true);
+            });
     }
 
     function showLoginError() {
         document.querySelector('#login-error').innerHTML = 'Invalid username or password';
     }
 
-    function initGeoLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(onPositionUpdated,
-                onLoadPositionFailed, {
-                    maximumAge : 60000
-                });
-            showLoadingMessage('Retrieving your location...');
+    function clearLoginError() {
+        document.querySelector('#login-error').innerHTML = '';
+    }
+
+    // -----------------------------------
+    // Register
+    // -----------------------------------
+
+    function register() {
+        var username = document.querySelector('#register-username').value;
+        var password = document.querySelector('#register-password').value;
+        var firstName = document.querySelector('#register-first-name').value;
+        var lastName = document.querySelector('#register-last-name').value;
+
+        if (username === "" || password == "" || firstName === "" || lastName === "") {
+            showRegisterResult('Please fill in all fields');
+            return
+        }
+
+        if (username.match(/^[a-z0-9_]+$/) === null) {
+            showRegisterResult('Invalid username');
+            return
+        }
+
+        password = md5(username + md5(password));
+
+        // The request parameters
+        var url = './register';
+        var req = JSON.stringify({
+            user_id : username,
+            password : password,
+            first_name: firstName,
+            last_name: lastName,
+        });
+
+        ajax('POST', url, req,
+            // successful callback
+            function(res) {
+                var result = JSON.parse(res);
+
+                // successfully logged in
+                if (result.status === 'OK') {
+                    showRegisterResult('Succesfully registered');
+                } else {
+                    showRegisterResult('User already existed');
+                }
+            },
+
+            // error
+            function() {
+                showRegisterResult('Failed to register');
+            });
+    }
+
+    function showRegisterResult(registerMessage) {
+        document.querySelector('#register-result').innerHTML = registerMessage;
+    }
+
+    function clearRegisterResult() {
+        document.querySelector('#register-result').innerHTML = '';
+    }
+
+
+    // -----------------------------------
+    // Helper Functions
+    // -----------------------------------
+
+    /**
+     * A helper function that makes a navigation button active
+     *
+     * @param btnId - The id of the navigation button
+     */
+    function activeBtn(btnId) {
+        var btns = document.querySelectorAll('.main-nav-btn');
+
+        // deactivate all navigation buttons
+        for (var i = 0; i < btns.length; i++) {
+            btns[i].className = btns[i].className.replace(/\bactive\b/, '');
+        }
+
+        // active the one that has id = btnId
+        var btn = document.querySelector('#' + btnId);
+        btn.className += ' active';
+    }
+
+    function showLoadingMessage(msg) {
+        var itemList = document.querySelector('#item-list');
+        itemList.innerHTML = '<p class="notice"><i class="fa fa-spinner fa-spin"></i> ' +
+            msg + '</p>';
+    }
+
+    function showWarningMessage(msg) {
+        var itemList = document.querySelector('#item-list');
+        itemList.innerHTML = '<p class="notice"><i class="fa fa-exclamation-triangle"></i> ' +
+            msg + '</p>';
+    }
+
+    function showErrorMessage(msg) {
+        var itemList = document.querySelector('#item-list');
+        itemList.innerHTML = '<p class="notice"><i class="fa fa-exclamation-circle"></i> ' +
+            msg + '</p>';
+    }
+
+    /**
+     * A helper function that creates a DOM element <tag options...>
+     * @param tag
+     * @param options
+     * @returns {Element}
+     */
+    function $create(tag, options) {
+        var element = document.createElement(tag);
+        for (var key in options) {
+            if (options.hasOwnProperty(key)) {
+                element[key] = options[key];
+            }
+        }
+        return element;
+    }
+
+    /**
+     * AJAX helper
+     *
+     * @param method - GET|POST|PUT|DELETE
+     * @param url - API end point
+     * @param data - request payload data
+     * @param successCallback - Successful callback function
+     * @param errorCallback - Error callback function
+     */
+    function ajax(method, url, data, successCallback, errorCallback) {
+        var xhr = new XMLHttpRequest();
+
+        xhr.open(method, url, true);
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                successCallback(xhr.responseText);
+            } else {
+                errorCallback();
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error("The request couldn't be completed.");
+            errorCallback();
+        };
+
+        if (data === null) {
+            xhr.send();
         } else {
-            onLoadPositionFailed();
+            xhr.setRequestHeader("Content-Type",
+                "application/json;charset=utf-8");
+            xhr.send(data);
         }
     }
 
-    function onPositionUpdated(position) {
-        lat = position.coords.latitude;
-        lng = position.coords.longitude;
-        console.log('lat -> ', lat);
-        console.log('lng -> ', lng);
-        loadNearbyItems();
-    }
+    // -------------------------------------
+    // AJAX call server-side APIs
+    // -------------------------------------
 
     /**
      * API #1 Load the nearby items API end point: [GET]
      * /search?user_id=1111&lat=37.38&lon=-122.08
      */
     function loadNearbyItems() {
+        console.log('loadNearbyItems');
         activeBtn('nearby-btn');
 
         // The request parameters
@@ -267,12 +388,14 @@
                 if (!items || items.length === 0) {
                     showWarningMessage('No nearby item.');
                 } else {
-                    listItems(items);                }
+                    listItems(items);
+                }
             },
             // failed callback
             function() {
                 showErrorMessage('Cannot load nearby items.');
-            });
+            }
+        );
     }
 
     /**
@@ -333,6 +456,39 @@
                 showErrorMessage('Cannot load recommended items.');
             }
         );
+    }
+
+    /**
+     * API #4 Toggle favorite (or visited) items
+     *
+     * @param item - The item from the list
+     *
+     * API end point: [POST]/[DELETE] /history request json data: {
+     * user_id: 1111, favorite: item }
+     */
+    function changeFavoriteItem(item) {
+        // check whether this item has been visited or not
+        var li = document.querySelector('#item-' + item.item_id);
+        var favIcon = document.querySelector('#fav-icon-' + item.item_id);
+        var favorite = !(li.dataset.favorite === 'true');
+
+        // request parameters
+        var url = './history';
+        var req = JSON.stringify({
+            user_id: user_id,
+            favorite: item
+        });
+        var method = favorite ? 'POST' : 'DELETE';
+
+        ajax(method, url, req,
+            // successful callback
+            function(res) {
+                var result = JSON.parse(res);
+                if (result.status === 'OK' || result.result === 'SUCCESS') {
+                    li.dataset.favorite = favorite;
+                    favIcon.className = favorite ? 'fa fa-heart' : 'fa fa-heart-o';
+                }
+            });
     }
 
     // -------------------------------------
@@ -440,140 +596,6 @@
         itemList.appendChild(li);
     }
 
-    /**
-     * A helper function that creates a DOM element <tag options...>
-     * @param tag
-     * @param options
-     * @returns {Element}
-     */
-    function $create(tag, options) {
-        var element = document.createElement(tag);
-        for (var key in options) {
-            if (options.hasOwnProperty(key)) {
-                element[key] = options[key];
-            }
-        }
-        return element;
-    }
-
-    /**
-     * A helper function that makes a navigation button active
-     *
-     * @param btnId -
-     *            The id of the navigation button
-     */
-    function activeBtn(btnId) {
-        var btns = document.querySelectorAll('.main-nav-btn');
-
-        // deactivate all navigation buttons
-        for (var i = 0; i < btns.length; i++) {
-            btns[i].className = btns[i].className.replace(/\bactive\b/, '');
-        }
-
-        // active the one that has id = btnId
-        var btn = document.querySelector('#' + btnId);
-        btn.className += ' active';
-    }
-
-    function showLoadingMessage(msg) {
-        var itemList = document.querySelector('#item-list');
-        itemList.innerHTML = '<p class="notice"><i class="fa fa-spinner fa-spin"></i> '
-            + msg + '</p>';
-    }
-
-    function showWarningMessage(msg) {
-        var itemList = document.querySelector('#item-list');
-        itemList.innerHTML = '<p class="notice"><i class="fa fa-exclamation-triangle"></i> '
-            + msg + '</p>';
-    }
-
-    function showErrorMessage(msg) {
-        var itemList = document.querySelector('#item-list');
-        itemList.innerHTML = '<p class="notice"><i class="fa fa-exclamation-circle"></i> '
-            + msg + '</p>';
-    }
-
-    function onLoadPositionFailed() {
-        console.warn('navigator.geolocation is not available');
-        getLocationFromIP();
-    }
-
-    function getLocationFromIP() {
-        // get location from http://ipinfo.io/json
-        var url = 'http://ipinfo.io/json'
-        var data = null;
-
-        ajax('GET', url, data, function(res) {
-            var result = JSON.parse(res);
-            if ('loc' in result) {
-                var loc = result.loc.split(',');
-                lat = loc[0];
-                lng = loc[1];
-            } else {
-                console.warn('Getting location by IP failed.');
-            }
-        });
-    }
-
-    /**
-     * API #4 Toggle favorite (or visited) items
-     *
-     * @param item - The item from the list
-     *
-     * API end point: [POST]/[DELETE] /history request json data: {
-     * user_id: 1111, favorite: item }
-     */
-    function changeFavoriteItem(item) {
-        // check whether this item has been visited or not
-        var li = document.querySelector('#item-' + item.item_id);
-        var favIcon = document.querySelector('#fav-icon-' + item.item_id);
-        var favorite = !(li.dataset.favorite === 'true');
-
-        // request parameters
-        var url = './history';
-        var req = JSON.stringify({
-            user_id: user_id,
-            favorite: item
-        });
-        var method = favorite ? 'POST' : 'DELETE';
-
-        ajax(method, url, req,
-            // successful callback
-            function(res) {
-                var result = JSON.parse(res);
-                if (result.status === 'OK' || result.result === 'SUCCESS') {
-                    li.dataset.favorite = favorite;
-                    favIcon.className = favorite ? 'fa fa-heart' : 'fa fa-heart-o';
-                }
-            });
-    }
-
-    function ajax(method, url, data, successCallback, errorCallback) {
-        var xhr = new XMLHttpRequest();
-
-        xhr.open(method, url, true);
-
-        xhr.onload = function() {
-            if (xhr.status === 200) {
-                successCallback(xhr.responseText);
-            } else {
-                errorCallback();
-            }
-        };
-
-        xhr.onerror = function() {
-            console.error("The request couldn't be completed.");
-            errorCallback();
-        };
-
-        if (data === null) {
-            xhr.send();
-        } else {
-            xhr.setRequestHeader("Content-Type",
-                "application/json;charset=utf-8");
-            xhr.send(data);
-        }
-    }
-
     init();
+
 })();
